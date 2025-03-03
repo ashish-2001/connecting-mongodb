@@ -8,6 +8,8 @@ const mongoose = require("mongoose");
 
 const JWT_SECRET = "vjksbdvbvdvbdvbhjksdvbjsdvbh";
 
+const { z } = require("zod");
+
 const { UserModel, TodoModel } = require("./db");
 
 mongoose.connect("");
@@ -15,12 +17,28 @@ mongoose.connect("");
 app.use(express.json());
 
 app.post("/signup", async function(req, res){
+    const requiredBody = z.object({
+        email: z.string().min(3).max(100).email(),
+        name: z.string().min(3).max(50),
+        password: z.string.min(3).max(30)
+    });
+
+    const parsedDataWithSuccess = requiredBody.safeParse(req.body);
+
+    if(!parsedDataWithSuccess.success){
+        res.json({
+            message: "Incorrect format!",
+            error: parsedDataWithSuccess.error
+        });
+        return;
+    }
     const name = req.body.name;
     const password = req.body.password;
     const email = req.body.email;
+    const hashedPassword = await bcrypt.hash(password, 5);
     await UserModel.create({
         name: name,
-        password: password,
+        password: hashedPassword,
         email: email
     })
     res.json({
@@ -31,13 +49,18 @@ app.post("/signup", async function(req, res){
 app.post("/signin", async function(req, res){
     const email = req.body.email;
     const password = req.body.password;
-    const hashedPassword = await bcrypt.hash(password, 5);
 
     const user = await UserModel.findOne({
         email: email,
-        password: hashedPassword
     });
-    if(user){
+    if(!user){
+        res.status(403).json({
+            message: "User does not exist!"
+        });
+        return
+    }
+    const comparePassword = await bcrypt.compare(password, user.password);
+    if(comparePassword){
         const token = jwt.sign({
             id: user._id.toString()
         }, JWT_SECRET);
