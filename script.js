@@ -10,7 +10,7 @@ const JWT_SECRET = "vjksbdvbvdvbdvbhjksdvbjsdvbh";
 
 const { UserModel, TodoModel } = require("./db");
 
-mongoose.connect("mongodb+srv://ashishpal:Ashish02@cluster0.ksf2z.mongodb.net/ashish-todo-2001");
+mongoose.connect("");
 
 app.use(express.json());
 
@@ -24,17 +24,18 @@ app.post("/signup", async function(req, res){
         email: email
     })
     res.json({
-        messge: "You are logged in!"
+        message: "You are signed up!"
     });
 });
 
 app.post("/signin", async function(req, res){
     const email = req.body.email;
     const password = req.body.password;
+    const hashedPassword = await bcrypt.hash(password, 5);
 
     const user = await UserModel.findOne({
         email: email,
-        password: password
+        password: hashedPassword
     });
     if(user){
         const token = jwt.sign({
@@ -46,7 +47,7 @@ app.post("/signin", async function(req, res){
     }
     else{
         res.status(403).json({
-            messge: "Incorrect Credentials!"
+            message: "Incorrect Credentials!"
         });
     }
 });
@@ -65,11 +66,11 @@ function auth(req, res, next){
     }
 }
 
-app.post("/todo", auth, function(req, res){
+app.post("/todo", auth, async function(req, res){
     const userId = req.userId;
     const title = req.body.title;
 
-    TodoModel.create({
+    await TodoModel.create({
         title,
         userId
     })
